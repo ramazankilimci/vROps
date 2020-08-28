@@ -1,0 +1,84 @@
+ $firstHeaders = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$firstHeaders.Add("Content-Type", "application/json; utf-8")
+$firstHeaders.Add("Accept", "application/json")
+
+#Enter your username and password. I just tried with local user.
+$firstBody = "{
+`n  `"username`" : `"username`",
+`n  `"password`" : `"password`",
+`n  `"others`" : [ ],
+`n  `"otherAttributes`" : { }
+`n}"
+
+#Enter your vROps IP or FQDN
+$firstResponse = Invoke-RestMethod 'https://vrops.mhclabs.com/suite-api/api/auth/token/acquire' -Method 'POST' -Headers $firstHeaders -Body $firstBody
+$firstResponse | ConvertTo-Json
+
+#We get the token.
+$token = $firstResponse.token
+
+###################
+# Get Custom Groups 
+###################
+
+$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers.Add("Content-Type", "application/json; utf-8")
+$headers.Add("Accept", "application/json")
+$headers.Add("Authorization", "vRealizeOpsToken $token")
+
+$body = @{}
+
+$response = Invoke-RestMethod 'https://vrops.mhclabs.com/suite-api/api/resources/groups' -Method 'GET' -Headers $headers -Body $body
+$response | ConvertTo-Json
+
+
+$key = "Department"
+
+
+# $response.groups.GetValue(0).resourcekey.resourceKindKey
+
+for($i=0; $i -lt $response.groups.Length; $i++){
+
+$id = $response.groups.GetValue($i).id
+$groupName = $response.groups.GetValue($i).resourcekey.name
+
+if($response.groups.GetValue($i).resourcekey.resourceKindKey -eq $key) {
+
+$headers2 = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers2.Add("Content-Type", "application/json; utf-8")
+$headers2.Add("Accept", "application/json")
+$headers2.Add("Authorization", "vRealizeOpsToken $token")
+
+$body2 = "        {
+`n            `"id`": `"$id`",
+`n            `"resourceKey`": {
+`n                `"name`": `"$groupName`",
+`n                `"adapterKindKey`": `"Container`",
+`n                `"resourceKindKey`": `"$key`",
+`n                `"resourceIdentifiers`": []
+`n            },
+`n            `"autoResolveMembership`": true,
+`n            `"membershipDefinition`": {
+`n                `"includedResources`": [],
+`n                `"excludedResources`": [],
+`n                `"custom-group-properties`": [],
+`n                `"rules`": [
+`n                    {
+`n                        `"resourceKindKey`": {
+`n                            `"resourceKind`": `"VirtualMachine`",
+`n                            `"adapterKind`": `"VMWARE`"
+`n                        },
+`n                        `"statConditionRules`": [],
+`n                        `"propertyConditionRules`": [],
+`n                        `"resourceNameConditionRules`": [],
+`n                        `"relationshipConditionRules`": []
+`n                    }
+`n                ]
+`n            }
+`n        }"
+
+$response2 = Invoke-RestMethod 'https://vrops.mhclabs.com/suite-api/api/resources/groups' -Method 'PUT' -Headers $headers2 -Body $body2
+
+
+}
+} 
